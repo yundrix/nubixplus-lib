@@ -5,13 +5,17 @@
 
     <groupId>com.nubixplus</groupId>
     <artifactId>nubixplus-lib</artifactId>
-    <version>0.0.2-SNAPSHOT</version>
+    <version>${revision}</version>
     <packaging>jar</packaging>
 
     <name>nubixplus-lib</name>
     <description>Libreria base compartida de NubixPlus: stereotype, entidades, repositorios, DTOs, excepciones y utilidades</description>
 
     <properties>
+        <!-- Version del artefacto. El CI la sobreescribe con -Drevision para que
+             la rama dev publique 0.0.2-dev-SNAPSHOT y no pise el de master. -->
+        <revision>0.0.2-SNAPSHOT</revision>
+
         <java.version>25</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
@@ -116,6 +120,35 @@
                         <id>attach-sources</id>
                         <goals>
                             <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- OBLIGATORIO al usar ${revision}: reemplaza la variable por el valor real
+                 en el pom que se publica. Sin esto, Nexus recibe un pom con
+                 <version>${revision}</version> literal y los servicios no resuelven la lib. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
                         </goals>
                     </execution>
                 </executions>

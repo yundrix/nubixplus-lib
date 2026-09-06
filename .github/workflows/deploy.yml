@@ -1,0 +1,64 @@
+name: Publicar lib en Nexus
+
+on:
+  push:
+    branches: [master, dev]
+  pull_request:
+    branches: [master, dev]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Calcular version segun rama
+        id: ver
+        run: |
+          BASE=$(./mvnw -q -DforceStdout help:evaluate -Dexpression=revision)
+          if [ "$GITHUB_REF_NAME" = "master" ]; then
+            echo "revision=$BASE" >> "$GITHUB_OUTPUT"
+          else
+            echo "revision=${BASE%-SNAPSHOT}-${GITHUB_REF_NAME}-SNAPSHOT" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build y tests (PR)
+        if: github.event_name == 'pull_request'
+        run: >
+          ./mvnw -B --settings .github/settings.xml
+          -Drevision=${{ steps.ver.outputs.revision }} clean verify
+
+      - name: Build, tests y publicar en Nexus
+        if: github.event_name != 'pull_request'
+        run: >
+          ./mvnw -B --settings .github/settings.xml
+          -Drevision=${{ steps.ver.outputs.revision }} clean deploy
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+
+      - name: Redesplegar en Dokploy
+        if: github.event_name != 'pull_request'
+        env:
+          APP_ID: ${{ github.ref_name == 'master' && vars.DOKPLOY_APP_ID || vars.DOKPLOY_APP_ID_DEV }}
+        run: |
+          if [ -z "$APP_ID" ]; then
+            echo "Sin app id para ${GITHUB_REF_NAME}, se omite el redespliegue."
+            exit 0
+          fi
+          curl -fsS -X POST "${{ vars.DOKPLOY_URL }}/api/application.deploy" \
+            -H 'Content-Type: application/json' \
+            -H "x-api-key: ${{ secrets.DOKPLOY_TOKEN }}" \
+            -d "{\"applicationId\": \"$APP_ID\"}"
