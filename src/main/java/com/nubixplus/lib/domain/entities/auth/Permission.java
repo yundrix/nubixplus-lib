@@ -57,18 +57,6 @@ public class Permission extends AuditableEntity {
     @Column(name = "action", nullable = false, length = 60)
     private String action;
 
-    /** Construye el permiso a partir de un codigo {@code modulo:accion}. */
-    public static Permission of(String code, String name, String description) {
-        final String[] parts = code.split(CODE_SEPARATOR, 2);
-        return Permission.builder()
-                .code(code)
-                .module(parts[0])
-                .action(parts[1])
-                .name(name)
-                .description(description)
-                .build();
-    }
-
     @Override
     public String toString() {
         return "Permission{" +

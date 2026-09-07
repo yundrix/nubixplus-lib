@@ -37,6 +37,11 @@ public class PermissionCodes {
     public static final String CATEGORIES_UPDATE = "categories:update";
     public static final String CATEGORIES_DELETE = "categories:delete";
 
+    public static final String BRANDS_READ = "brands:read";
+    public static final String BRANDS_CREATE = "brands:create";
+    public static final String BRANDS_UPDATE = "brands:update";
+    public static final String BRANDS_DELETE = "brands:delete";
+
     public static final String FAMILIES_READ = "families:read";
     public static final String FAMILIES_CREATE = "families:create";
     public static final String FAMILIES_UPDATE = "families:update";

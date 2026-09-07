@@ -20,7 +20,6 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 /**
  * Usuario de la plataforma. La identidad (correo + contrasena) es global: el mismo
@@ -99,22 +98,6 @@ public class User extends AuditableEntity {
 
     public String getFullName() {
         return (firstName + " " + lastName).trim();
-    }
-
-    /** Bloqueo temporal vigente por intentos fallidos. */
-    public boolean isTemporarilyLocked() {
-        return Objects.nonNull(lockedUntil) && lockedUntil.isAfter(LocalDateTime.now());
-    }
-
-    public boolean canLogin() {
-        return Objects.nonNull(status) && status.canLogin();
-    }
-
-    /** Deja la cuenta lista para operar despues de un login correcto. */
-    public void registerSuccessfulLogin() {
-        this.failedLoginAttempts = 0;
-        this.lockedUntil = null;
-        this.lastLoginAt = LocalDateTime.now();
     }
 
     @Override

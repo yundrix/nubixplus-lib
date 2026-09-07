@@ -28,7 +28,6 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -39,8 +38,8 @@ import java.util.stream.Collectors;
  * tiene DENTRO de esa organizacion. Es el nucleo del modelo multi-organizacion.
  *
  * <p>La relacion con {@link Role} es N:M y esta modelada con tres tablas a traves de
- * {@link UserOrganizationRole}. {@link #getRoles()} y {@link #setRoles(Collection)}
- * son vistas de conveniencia sobre esos vinculos.</p>
+ * {@link UserOrganizationRole}. {@link #getRoles()} es una vista de conveniencia
+ * sobre esos vinculos; la sincronizacion vive en el servicio de membresias.</p>
  */
 @Getter
 @Setter
@@ -116,38 +115,6 @@ public class UserOrganization extends AuditableEntity {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    /**
-     * Reemplaza los roles de la membresia sincronizando la tabla intermedia: quita los
-     * vinculos que sobran y agrega los que faltan, sin recrear los que ya existian.
-     */
-    public void setRoles(Collection<Role> roles) {
-        final Set<Role> target = Objects.isNull(roles)
-                ? Set.of()
-                : roles.stream().filter(Objects::nonNull).collect(Collectors.toCollection(LinkedHashSet::new));
-
-        this.userRoles.removeIf(link -> target.stream().noneMatch(link::links));
-        target.stream().filter(role -> !this.hasRole(role)).forEach(this::addRole);
-    }
-
-    public void addRole(Role role) {
-        if (Objects.isNull(role) || this.hasRole(role)) {
-            return;
-        }
-        this.userRoles.add(UserOrganizationRole.of(this, role));
-    }
-
-    public void removeRole(Role role) {
-        this.userRoles.removeIf(link -> link.links(role));
-    }
-
-    public boolean hasRole(Role role) {
-        return this.userRoles.stream().anyMatch(link -> link.links(role));
-    }
-
-    public boolean canOperate() {
-        return Objects.nonNull(status) && status.canOperate();
-    }
-
     /** Codigos de rol, listos para convertirse en authorities. */
     public Set<String> getRoleCodes() {
         return this.getRoles().stream().map(Role::getCode).collect(Collectors.toCollection(LinkedHashSet::new));
@@ -158,10 +125,6 @@ public class UserOrganization extends AuditableEntity {
         return this.getRoles().stream()
                 .flatMap(role -> role.getPermissionCodes().stream())
                 .collect(Collectors.toCollection(LinkedHashSet::new));
-    }
-
-    public boolean hasRole(String code) {
-        return this.getRoles().stream().anyMatch(role -> role.getCode().equals(code));
     }
 
     @Override

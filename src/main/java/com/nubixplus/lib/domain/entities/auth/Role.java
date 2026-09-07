@@ -23,7 +23,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
-import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -37,9 +36,9 @@ import java.util.stream.Collectors;
  * propio creado por esa compania.</p>
  *
  * <p>La relacion con {@link Permission} es N:M y esta modelada con tres tablas a
- * traves de {@link RolePermission}. {@link #getPermissions()} y
- * {@link #setPermissions(Collection)} son vistas de conveniencia sobre esos
- * vinculos: la coleccion que persiste es {@code rolePermissions}.</p>
+ * traves de {@link RolePermission}. {@link #getPermissions()} es una vista de
+ * conveniencia sobre esos vinculos (la coleccion que persiste es
+ * {@code rolePermissions}); la sincronizacion vive en el servicio de roles.</p>
  */
 @Getter
 @Setter
@@ -108,43 +107,11 @@ public class Role extends AuditableEntity {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    /**
-     * Reemplaza los permisos del rol sincronizando la tabla intermedia: elimina los
-     * vinculos que sobran y agrega los que faltan, sin recrear los que ya existian.
-     */
-    public void setPermissions(Collection<Permission> permissions) {
-        final Set<Permission> target = Objects.isNull(permissions)
-                ? Set.of()
-                : permissions.stream().filter(Objects::nonNull).collect(Collectors.toCollection(LinkedHashSet::new));
-
-        this.rolePermissions.removeIf(link -> target.stream().noneMatch(link::links));
-        target.stream().filter(permission -> !this.hasPermission(permission)).forEach(this::addPermission);
-    }
-
-    public void addPermission(Permission permission) {
-        if (Objects.isNull(permission) || this.hasPermission(permission)) {
-            return;
-        }
-        this.rolePermissions.add(RolePermission.of(this, permission));
-    }
-
-    public void removePermission(Permission permission) {
-        this.rolePermissions.removeIf(link -> link.links(permission));
-    }
-
-    public boolean hasPermission(Permission permission) {
-        return this.rolePermissions.stream().anyMatch(link -> link.links(permission));
-    }
-
     /** Codigos de permiso del rol, ej. {@code users:create}. */
     public Set<String> getPermissionCodes() {
         return this.getPermissions().stream()
                 .map(Permission::getCode)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
-    }
-
-    public boolean isGlobal() {
-        return Objects.isNull(organization);
     }
 
     @Override

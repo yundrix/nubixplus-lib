@@ -84,19 +84,6 @@ public class RefreshToken extends BaseEntity {
     @Column(name = "ip_address", length = 60)
     private String ipAddress;
 
-    public boolean isExpired() {
-        return expiresAt.isBefore(LocalDateTime.now());
-    }
-
-    public boolean isUsable() {
-        return !revoked && !isExpired();
-    }
-
-    public void revoke() {
-        this.revoked = Boolean.TRUE;
-        this.revokedAt = LocalDateTime.now();
-    }
-
     @Override
     public String toString() {
         return "RefreshToken{" +

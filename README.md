@@ -101,6 +101,9 @@ ser `ORG_ADMIN` en una compañía y `VIEWER` en otra.
 ### Inventario
 
 ```
+                                     brands
+                                        │ 1:N  (opcional)
+                                        │
 families ──1:N── categories ──1:N── products ──1:N── product_codes
                                         │              (SKU, UPC12, EAN13, ...)
                                        1:N
@@ -120,6 +123,9 @@ migraciones versionadas en `src/main/resources/db/migration/<motor>/`:
 | `V0001` | Convierte las tablas intermedias de `@ManyToMany` en entidades (`id` + timestamps) sin perder filas |
 | `V0002` | Crea el módulo de inventario |
 | `V0003` | `organizations.status` → `active`, `is_default` → `default_organization` |
+| `V0004` | Saca `deleted` de todas las tablas: borrar vuelve a ser borrar |
+| `V0005` | Alinea la base de dev con el DDL de referencia (solo PostgreSQL) |
+| `V0006` | `products.brand` (texto) → tabla `brands` + `products.brand_id`, con los valores ya cargados migrados |
 
 Los nombres siguen la convención de Flyway por si más adelante se adopta.
 
@@ -175,7 +181,7 @@ servicio lo toma de ahí.
   `UNIQUE` sobre las dos FK. Las tres extienden `BaseEntity` y no `AuditableEntity`: un
   vínculo se otorga o se revoca, y no necesita ni autor ni versión.
 - **Estados.** Disponibilidad binaria → `boolean active` (`organizations`, `families`,
-  `categories`, `suppliers`). Ciclo de vida con más de dos estados y comportamiento distinto
+  `categories`, `brands`, `suppliers`). Ciclo de vida con más de dos estados y comportamiento distinto
   en cada uno → enum `status` (`users`, `user_organizations`, `products`). No se usan enums de
   dos valores: no aportan nada sobre el boolean y arrastran un `CHECK` que hay que mantener.
 - **Códigos del producto como entidad.** `ProductCode` (1:N desde `Product`) en vez de
@@ -184,6 +190,11 @@ servicio lo toma de ahí.
   por compañía porque el catálogo es de cada tenant, y por tipo porque cada tipo es un
   espacio de nombres distinto. Las reglas de formato de cada `ProductCodeType` (largo y
   dígito verificador GTIN) viven en un solo lugar: `ProductCodes`.
+- **Marca como entidad.** `Brand` (N:1 desde `Product`) en vez de un `VARCHAR` en el producto:
+  como texto libre, `Nestlé`, `NESTLE` y `Nestle ` eran tres marcas distintas para el reporte y
+  no había dónde corregirlas de una sola vez. El código es único por compañía, igual que en
+  familias y categorías. La FK admite `NULL` a propósito: hay artículos genéricos o de
+  producción propia que no tienen marca.
 - Las entidades exponen constantes `FIELD_*` con el nombre de sus atributos, que es lo que
   consumen las `Specification` del servicio en vez de literales sueltos.
 - Se publica también el `sources.jar`.

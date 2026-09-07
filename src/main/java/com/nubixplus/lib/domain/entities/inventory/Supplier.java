@@ -26,11 +26,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
-import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Suplidor de la compania. Se identifica por su RNC o cedula, igual que la
@@ -134,30 +132,6 @@ public class Supplier extends AuditableEntity {
             orphanRemoval = true,
             fetch = FetchType.LAZY)
     private Set<ProductSupplier> productSuppliers = new LinkedHashSet<>();
-
-    /** Productos que este suplidor abastece, resueltos desde la tabla intermedia. */
-    public Set<Product> getProducts() {
-        return this.productSuppliers.stream()
-                .map(ProductSupplier::getProduct)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-    }
-
-    public boolean supplies(Product product) {
-        return this.productSuppliers.stream().anyMatch(link -> link.linksProduct(product));
-    }
-
-    /** Reemplaza los productos abastecidos sincronizando la tabla intermedia. */
-    public void setProducts(Collection<Product> products) {
-        final Set<Product> target = Objects.isNull(products)
-                ? Set.of()
-                : products.stream().filter(Objects::nonNull).collect(Collectors.toCollection(LinkedHashSet::new));
-
-        this.productSuppliers.removeIf(link -> target.stream().noneMatch(link::linksProduct));
-        target.stream()
-                .filter(product -> !this.supplies(product))
-                .forEach(product -> this.productSuppliers.add(ProductSupplier.of(product, this)));
-    }
 
     /** Nombre comercial si existe; si no, la razon social. */
     public String getDisplayName() {

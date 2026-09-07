@@ -1,6 +1,7 @@
 package com.nubixplus.lib.domain.dtos.inventory;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.nubixplus.lib.domain.entities.inventory.Brand;
 import com.nubixplus.lib.domain.entities.inventory.Category;
 import com.nubixplus.lib.domain.entities.inventory.Family;
 import com.nubixplus.lib.domain.entities.inventory.Product;
@@ -28,7 +29,6 @@ import java.util.Optional;
 public class ProductDTO extends BaseProductDTO {
 
     private String description;
-    private String brand;
     private UnitOfMeasure unit;
     private String unitSymbol;
     private BigDecimal cost;
@@ -37,6 +37,9 @@ public class ProductDTO extends BaseProductDTO {
     private BigDecimal minStock;
     private BigDecimal maxStock;
 
+    private Long brandId;
+    private String brandCode;
+    private String brandName;
     private Long categoryId;
     private String categoryCode;
     private String categoryName;
@@ -47,7 +50,6 @@ public class ProductDTO extends BaseProductDTO {
     protected ProductDTO(Product product) {
         super(product);
         this.description = product.getDescription();
-        this.brand = product.getBrand();
         this.unit = product.getUnit();
         this.unitSymbol = Optional.ofNullable(product.getUnit()).map(UnitOfMeasure::getSymbol).orElse(null);
         this.cost = product.getCost();
@@ -55,6 +57,13 @@ public class ProductDTO extends BaseProductDTO {
         this.trackStock = product.isTrackStock();
         this.minStock = product.getMinStock();
         this.maxStock = product.getMaxStock();
+
+        final Brand brand = product.getBrand();
+        if (Objects.nonNull(brand)) {
+            this.brandId = brand.getId();
+            this.brandCode = brand.getCode();
+            this.brandName = brand.getName();
+        }
 
         final Category category = product.getCategory();
         if (Objects.nonNull(category)) {

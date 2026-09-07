@@ -28,12 +28,8 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
-import java.util.Collection;
 import java.util.LinkedHashSet;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Producto del catalogo de inventario.
@@ -49,6 +45,9 @@ import java.util.stream.Collectors;
  *
  * <p>La relacion con {@link Supplier} es N:M y esta modelada con tres tablas a traves
  * de {@link ProductSupplier}.</p>
+ *
+ * <p>La {@link Brand} es N:1 y opcional: se registra una vez y se referencia, en vez
+ * de repetir el texto en cada producto. Hay articulos genericos que no llevan.</p>
  */
 @Getter
 @Setter
@@ -63,6 +62,7 @@ import java.util.stream.Collectors;
         indexes = {
                 @Index(name = "ix_products_organization", columnList = "organization_id"),
                 @Index(name = "ix_products_category", columnList = "category_id"),
+                @Index(name = "ix_products_brand", columnList = "brand_id"),
                 @Index(name = "ix_products_name", columnList = "name"),
                 @Index(name = "ix_products_status", columnList = "status")
         }
@@ -83,8 +83,12 @@ public class Product extends AuditableEntity {
     @Column(name = "description", length = 500)
     private String description;
 
-    @Column(name = "brand", length = 120)
-    private String brand;
+    /** Opcional: un articulo generico o de produccion propia no tiene marca. */
+    @EqualsAndHashCode.Exclude
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "brand_id",
+            foreignKey = @ForeignKey(name = "fk_products_brand"))
+    private Brand brand;
 
     @EqualsAndHashCode.Exclude
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -152,117 +156,17 @@ public class Product extends AuditableEntity {
             fetch = FetchType.LAZY)
     private Set<ProductSupplier> productSuppliers = new LinkedHashSet<>();
 
-    /* ---------------------------- Codigos (1:N) ---------------------------- */
-
-    /** Codigo del tipo indicado, si el producto tiene alguno. */
-    public Optional<ProductCode> findCode(ProductCodeType type) {
-        return this.codes.stream().filter(code -> code.getType() == type).findFirst();
-    }
-
-    /** Valor del codigo del tipo indicado, o {@code null} si el producto no lo tiene. */
-    public String codeValue(ProductCodeType type) {
-        return this.findCode(type).map(ProductCode::getValue).orElse(null);
-    }
-
-    /** Codigo interno de la compania. Atajo de {@code codeValue(SKU)} para listados. */
+    /**
+     * Codigo interno de la compania, derivado del codigo de tipo SKU. Es la columna
+     * que muestran los listados; la gestion de codigos vive en el servicio de
+     * productos.
+     */
     public String skuValue() {
-        return this.codeValue(ProductCodeType.SKU);
-    }
-
-    public boolean hasCode(ProductCodeType type, String value) {
-        return this.codes.stream().anyMatch(code -> code.matches(type, value));
-    }
-
-    /**
-     * Agrega un codigo. Es idempotente: si el producto ya tiene ese tipo con ese
-     * valor no lo duplica, que es ademas lo que garantiza
-     * {@code uk_product_codes_organization_type_value} en la base de datos.
-     */
-    public ProductCode addCode(ProductCodeType type, String value) {
-        if (Objects.isNull(type) || Objects.isNull(value)) {
-            return null;
-        }
         return this.codes.stream()
-                .filter(code -> code.matches(type, value))
+                .filter(code -> code.getType() == ProductCodeType.SKU)
+                .map(ProductCode::getValue)
                 .findFirst()
-                .orElseGet(() -> {
-                    final ProductCode code = ProductCode.of(this, type, value);
-                    this.codes.add(code);
-                    return code;
-                });
-    }
-
-    public void removeCode(ProductCodeType type, String value) {
-        this.codes.removeIf(code -> code.matches(type, value));
-    }
-
-    /* --------------------------- Suplidores (N:M) --------------------------- */
-
-    /** Suplidores del producto, resueltos desde la tabla intermedia. */
-    public Set<Supplier> getSuppliers() {
-        return this.productSuppliers.stream()
-                .map(ProductSupplier::getSupplier)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-    }
-
-    /**
-     * Reemplaza los suplidores sincronizando la tabla intermedia: quita los vinculos
-     * que sobran y agrega los que faltan, sin recrear los que ya existian (asi no se
-     * pierden el costo ni el tiempo de entrega ya pactados).
-     */
-    public void setSuppliers(Collection<Supplier> suppliers) {
-        final Set<Supplier> target = Objects.isNull(suppliers)
-                ? Set.of()
-                : suppliers.stream().filter(Objects::nonNull).collect(Collectors.toCollection(LinkedHashSet::new));
-
-        this.productSuppliers.removeIf(link -> target.stream().noneMatch(link::linksSupplier));
-        target.stream().filter(supplier -> !this.hasSupplier(supplier)).forEach(this::addSupplier);
-    }
-
-    /**
-     * Vincula un suplidor. Es idempotente: si el vinculo ya existe no lo duplica, que
-     * es lo que ademas garantiza {@code uk_product_suppliers} en la base de datos.
-     */
-    public ProductSupplier addSupplier(Supplier supplier) {
-        if (Objects.isNull(supplier)) {
-            return null;
-        }
-        return this.findLink(supplier).orElseGet(() -> {
-            final ProductSupplier link = ProductSupplier.of(this, supplier);
-            this.productSuppliers.add(link);
-            return link;
-        });
-    }
-
-    public void removeSupplier(Supplier supplier) {
-        this.productSuppliers.removeIf(link -> link.linksSupplier(supplier));
-    }
-
-    public boolean hasSupplier(Supplier supplier) {
-        return this.findLink(supplier).isPresent();
-    }
-
-    /** Vinculo con un suplidor concreto, para leer o ajustar sus condiciones. */
-    public Optional<ProductSupplier> findLink(Supplier supplier) {
-        return this.productSuppliers.stream().filter(link -> link.linksSupplier(supplier)).findFirst();
-    }
-
-    /** Suplidor marcado como preferido, si hay alguno. */
-    public Optional<Supplier> getPreferredSupplier() {
-        return this.productSuppliers.stream()
-                .filter(ProductSupplier::isPreferred)
-                .map(ProductSupplier::getSupplier)
-                .findFirst();
-    }
-
-    /** Familia a la que pertenece, derivada de la categoria. */
-    public Family getFamily() {
-        return Optional.ofNullable(this.category).map(Category::getFamily).orElse(null);
-    }
-
-    public boolean isAvailable() {
-        return Objects.nonNull(status) && status.isAvailable();
+                .orElse(null);
     }
 
     @Override
