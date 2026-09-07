@@ -14,7 +14,7 @@
     <properties>
         <!-- Version del artefacto. El CI la sobreescribe con -Drevision para que
              la rama dev publique 0.0.2-dev-SNAPSHOT y no pise el de master. -->
-        <revision>0.0.3-SNAPSHOT</revision>
+        <revision>0.0.4-SNAPSHOT</revision>
 
         <java.version>25</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>

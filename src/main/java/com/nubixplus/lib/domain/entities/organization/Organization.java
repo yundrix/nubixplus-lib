@@ -3,7 +3,6 @@ package com.nubixplus.lib.domain.entities.organization;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.nubixplus.lib.domain.constants.AppConstants;
 import com.nubixplus.lib.domain.types.DocumentType;
-import com.nubixplus.lib.domain.types.OrganizationStatus;
 import com.nubixplus.lib.stereotype.AuditableEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -39,7 +38,7 @@ import java.util.Objects;
         uniqueConstraints = @UniqueConstraint(name = "uk_organizations_document_number", columnNames = "document_number"),
         indexes = {
                 @Index(name = "ix_organizations_document_number", columnList = "document_number"),
-                @Index(name = "ix_organizations_status", columnList = "status")
+                @Index(name = "ix_organizations_active", columnList = "active")
         }
 )
 public class Organization extends AuditableEntity {
@@ -49,7 +48,7 @@ public class Organization extends AuditableEntity {
     public static final String FIELD_DOCUMENT_TYPE = "documentType";
     public static final String FIELD_DOCUMENT_NUMBER = "documentNumber";
     public static final String FIELD_EMAIL = "email";
-    public static final String FIELD_STATUS = "status";
+    public static final String FIELD_ACTIVE = "active";
 
     @Column(name = "legal_name", nullable = false, length = 200)
     private String legalName;
@@ -74,10 +73,13 @@ public class Organization extends AuditableEntity {
     @Column(name = "address", length = 300)
     private String address;
 
+    /**
+     * Disponibilidad de la compania: si esta inactiva, sus usuarios no pueden entrar.
+     * Es binaria, asi que va como boolean y no como enum de dos valores.
+     */
     @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private OrganizationStatus status = OrganizationStatus.ACTIVE;
+    @Column(name = "active", nullable = false)
+    private boolean active = true;
 
     @Builder.Default
     @Column(name = "timezone", length = 60)
@@ -95,16 +97,12 @@ public class Organization extends AuditableEntity {
         return Objects.nonNull(commercialName) && !commercialName.isBlank() ? commercialName : legalName;
     }
 
-    public boolean isOperational() {
-        return Objects.nonNull(status) && status.isOperational();
-    }
-
     @Override
     public String toString() {
         return "Organization{" +
                "legalName='" + legalName + '\'' +
                ", documentNumber='" + documentNumber + '\'' +
-               ", status=" + status +
+               ", active=" + active +
                "} " + super.toString();
     }
 }

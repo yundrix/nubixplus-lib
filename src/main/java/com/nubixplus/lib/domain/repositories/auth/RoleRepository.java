@@ -13,36 +13,32 @@ import java.util.Set;
 public interface RoleRepository extends BaseRepository<Role> {
 
     /** Rol de sistema (sin organizacion). */
-    @EntityGraph(attributePaths = "permissions")
-    Optional<Role> findByCodeAndOrganizationIsNullAndDeletedFalse(String code);
+    @EntityGraph(attributePaths = {"rolePermissions", "rolePermissions.permission"})
+    Optional<Role> findByCodeAndOrganizationIsNull(String code);
 
-    Optional<Role> findByCodeAndOrganizationIdAndDeletedFalse(String code, Long organizationId);
-
-    Optional<Role> findByIdAndDeletedFalse(Long id);
+    Optional<Role> findByCodeAndOrganizationId(String code, Long organizationId);
 
     /** Roles visibles para una organizacion: los de sistema mas los propios. */
-    @EntityGraph(attributePaths = "permissions")
+    @EntityGraph(attributePaths = {"rolePermissions", "rolePermissions.permission"})
     @Query("""
             select distinct r from Role r
-             where r.deleted = false
-               and (r.organization is null or r.organization.id = :organizationId)
+             where (r.organization is null or r.organization.id = :organizationId)
              order by r.code
             """)
     List<Role> findAvailableForOrganization(@Param("organizationId") Long organizationId);
 
-    @EntityGraph(attributePaths = "permissions")
+    @EntityGraph(attributePaths = {"rolePermissions", "rolePermissions.permission"})
     @Query("""
             select distinct r from Role r
-             where r.deleted = false
-               and r.id in :ids
+             where r.id in :ids
                and (r.organization is null or r.organization.id = :organizationId)
             """)
     List<Role> findAllByIdsForOrganization(@Param("ids") Set<Long> ids,
                                            @Param("organizationId") Long organizationId);
 
-    boolean existsByCodeAndOrganizationIdAndDeletedFalse(String code, Long organizationId);
+    boolean existsByCodeAndOrganizationId(String code, Long organizationId);
 
     default Optional<Role> findSystemRole(String code) {
-        return findByCodeAndOrganizationIsNullAndDeletedFalse(code);
+        return findByCodeAndOrganizationIsNull(code);
     }
 }

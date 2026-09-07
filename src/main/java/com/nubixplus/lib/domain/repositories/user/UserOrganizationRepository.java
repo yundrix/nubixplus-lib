@@ -20,7 +20,8 @@ public interface UserOrganizationRepository extends BaseRepository<UserOrganizat
      * transaccion ya no hay sesion para inicializar nada perezoso.
      */
     @Override
-    @EntityGraph(attributePaths = {"user", "roles", "roles.permissions"})
+    @EntityGraph(attributePaths = {"user", "userRoles", "userRoles.role",
+            "userRoles.role.rolePermissions", "userRoles.role.rolePermissions.permission"})
     Page<UserOrganization> findAll(Specification<UserOrganization> specification, Pageable pageable);
 
     /**
@@ -34,13 +35,12 @@ public interface UserOrganizationRepository extends BaseRepository<UserOrganizat
             select m from UserOrganization m
               join fetch m.user u
               join fetch m.organization o
-              left join fetch m.roles r
-              left join fetch r.permissions p
+              left join fetch m.userRoles ur
+              left join fetch ur.role r
+              left join fetch r.rolePermissions rp
+              left join fetch rp.permission p
              where lower(u.email) = lower(:email)
                and o.documentNumber = :documentNumber
-               and m.deleted = false
-               and u.deleted = false
-               and o.deleted = false
             """)
     List<UserOrganization> findMembershipByEmailAndDocument(@Param("email") String email,
                                                            @Param("documentNumber") String documentNumber);
@@ -53,11 +53,12 @@ public interface UserOrganizationRepository extends BaseRepository<UserOrganizat
             select m from UserOrganization m
               join fetch m.user u
               join fetch m.organization o
-              left join fetch m.roles r
-              left join fetch r.permissions p
+              left join fetch m.userRoles ur
+              left join fetch ur.role r
+              left join fetch r.rolePermissions rp
+              left join fetch rp.permission p
              where u.id = :userId
                and o.id = :organizationId
-               and m.deleted = false
             """)
     List<UserOrganization> findMembershipByUserAndOrganizationId(@Param("userId") Long userId,
                                                                  @Param("organizationId") Long organizationId);
@@ -71,8 +72,6 @@ public interface UserOrganizationRepository extends BaseRepository<UserOrganizat
             select distinct m from UserOrganization m
               join fetch m.organization o
              where lower(m.user.email) = lower(:email)
-               and m.deleted = false
-               and o.deleted = false
             """)
     List<UserOrganization> findAllByUserEmail(@Param("email") String email);
 
@@ -80,16 +79,12 @@ public interface UserOrganizationRepository extends BaseRepository<UserOrganizat
             select m from UserOrganization m
               join fetch m.user u
              where m.organization.id = :organizationId
-               and m.deleted = false
-               and u.deleted = false
             """,
             countQuery = """
                     select count(m) from UserOrganization m
                      where m.organization.id = :organizationId
-                       and m.deleted = false
-                       and m.user.deleted = false
                     """)
     Page<UserOrganization> findAllByOrganizationId(@Param("organizationId") Long organizationId, Pageable pageable);
 
-    boolean existsByUserIdAndOrganizationIdAndDeletedFalse(Long userId, Long organizationId);
+    boolean existsByUserIdAndOrganizationId(Long userId, Long organizationId);
 }

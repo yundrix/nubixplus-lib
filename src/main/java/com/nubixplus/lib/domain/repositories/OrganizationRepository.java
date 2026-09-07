@@ -8,17 +8,15 @@ import java.util.Optional;
 public interface OrganizationRepository extends BaseRepository<Organization> {
 
     /** El documento se recibe ya normalizado (solo digitos). */
-    Optional<Organization> findByDocumentNumberAndDeletedFalse(String documentNumber);
+    Optional<Organization> findByDocumentNumber(String documentNumber);
 
-    Optional<Organization> findByIdAndDeletedFalse(Long id);
-
-    boolean existsByDocumentNumberAndDeletedFalse(String documentNumber);
+    boolean existsByDocumentNumber(String documentNumber);
 
     default Optional<Organization> findByDocument(String documentNumber) {
-        return findByDocumentNumberAndDeletedFalse(documentNumber);
+        return findByDocumentNumber(documentNumber);
     }
 
     default boolean existsByDocument(String documentNumber) {
-        return existsByDocumentNumberAndDeletedFalse(documentNumber);
+        return existsByDocumentNumber(documentNumber);
     }
 }

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.nubixplus.lib.domain.dtos.BaseDTO;
 import com.nubixplus.lib.domain.entities.organization.Organization;
 import com.nubixplus.lib.domain.types.DocumentType;
-import com.nubixplus.lib.domain.types.OrganizationStatus;
 import com.nubixplus.lib.utils.Documents;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -31,7 +30,7 @@ public class BaseOrganizationDTO extends BaseDTO {
     private DocumentType documentType;
     private String documentNumber;
     private String documentNumberFormatted;
-    private OrganizationStatus status;
+    private boolean active;
 
     public BaseOrganizationDTO(Organization organization) {
         super(organization);
@@ -40,7 +39,7 @@ public class BaseOrganizationDTO extends BaseDTO {
             this.documentType = organization.getDocumentType();
             this.documentNumber = organization.getDocumentNumber();
             this.documentNumberFormatted = Documents.format(organization.getDocumentNumber());
-            this.status = organization.getStatus();
+            this.active = organization.isActive();
         }
     }
 

@@ -30,19 +30,20 @@ Regla práctica: si dos servicios lo van a necesitar, va en la lib.
 com.nubixplus.lib
 ├── stereotype
 │   ├── BaseEntity         id + createdAt/updatedAt (@PrePersist / @PreUpdate)
-│   ├── AuditableEntity    + createdBy, updatedBy, @Version y borrado lógico
+│   ├── AuditableEntity    + createdBy, updatedBy y @Version
 │   ├── BaseRepository     JpaRepository + JpaSpecificationExecutor
 │   ├── BaseService        contrato CRUD genérico
 │   ├── DefaultBaseService implementación; las subclases solo aportan getRepository()
 │   └── TransactionId      id de correlación en el MDC
 ├── domain
 │   ├── constants   AppConstants, SecurityConstants, RoleCodes, PermissionCodes
-│   ├── dtos        BaseDTO + auth/, organization/, users/
-│   ├── entities    auth/, organization/, user/
+│   ├── dtos        BaseDTO + auth/, organization/, users/, inventory/
+│   ├── entities    auth/, organization/, user/, inventory/
 │   ├── exceptions  RestResponseException + especializaciones + model/
 │   ├── repositories  un repositorio por entidad, agrupados por feature
-│   └── types       DocumentType, OrganizationStatus, UserStatus, MembershipStatus
-└── utils           Documents (RNC/cédula), Crypto (hashes)
+│   └── types       DocumentType, UserStatus, MembershipStatus,
+│                   ProductStatus, ProductCodeType, UnitOfMeasure
+└── utils           Documents (RNC/cédula), Crypto (hashes), ProductCodes (SKU/GTIN)
 ```
 
 ## El patrón de servicio
@@ -81,12 +82,14 @@ endpoint devuelva solo lo que necesita.
 
 ## Modelo de datos
 
+### Seguridad
+
 ```
-users ──┐                          ┌── organizations
-        │                          │      (RNC o cédula, único)
-        └──< user_organizations >──┘
+users ──1:N── user_organizations ──N:1── organizations
+                    │                        (RNC o cédula, único)
+                   1:N
                     │
-                    └──< user_organization_roles >── roles ──< role_permissions >── permissions
+         user_organization_roles ──N:1── roles ──1:N── role_permissions ──N:1── permissions
 ```
 
 Un usuario (correo + contraseña globales) pertenece a **N organizaciones** vía
@@ -95,7 +98,30 @@ ser `ORG_ADMIN` en una compañía y `VIEWER` en otra.
 
 `roles.organization_id` en `NULL` = rol de sistema disponible para todas las compañías.
 
-El DDL de referencia para PostgreSQL y MySQL está en `src/main/resources/db/`.
+### Inventario
+
+```
+families ──1:N── categories ──1:N── products ──1:N── product_codes
+                                        │              (SKU, UPC12, EAN13, ...)
+                                       1:N
+                                        │
+                             product_suppliers ──N:1── suppliers
+```
+
+Todo el catálogo es **por compañía**: los códigos son únicos dentro de la organización, no en
+toda la plataforma. Dos compañías pueden vender el mismo artículo y comprarle al mismo
+proveedor.
+
+El DDL de referencia para PostgreSQL y MySQL está en `src/main/resources/db/`, y las
+migraciones versionadas en `src/main/resources/db/migration/<motor>/`:
+
+| Migración | Qué hace |
+|---|---|
+| `V0001` | Convierte las tablas intermedias de `@ManyToMany` en entidades (`id` + timestamps) sin perder filas |
+| `V0002` | Crea el módulo de inventario |
+| `V0003` | `organizations.status` → `active`, `is_default` → `default_organization` |
+
+Los nombres siguen la convención de Flyway por si más adelante se adopta.
 
 ## Cómo la usa un servicio
 
@@ -136,9 +162,28 @@ servicio lo toma de ahí.
   `@RestControllerAdvice` del servicio traduce cualquier excepción sin conocer el caso concreto.
 - **PK `Long` con `IDENTITY`** (`BIGSERIAL` en Postgres).
 - **Fechas como `LocalDateTime`**, gestionadas por `BaseEntity` en `@PrePersist` / `@PreUpdate`.
-- **Borrado lógico**: `AuditableEntity.deleted`. Los repositorios filtran con `...AndDeletedFalse`.
+- **Sin borrado lógico.** Borrar es borrar: un `DELETE` de verdad. Que una fila cuente o no ya
+  lo dice su propio estado (`active` / `status`), y tener además un `deleted` era decir lo mismo
+  dos veces. Lo que no se puede borrar por dejar referencias colgando se corta antes, con un
+  mensaje que dice qué hay que soltar primero.
 - **Colecciones como `Set`**, nunca `List`, para evitar `MultipleBagFetchException` al hacer
-  varios `join fetch` en la consulta del login.
+  varios `join fetch` en la misma consulta (el login trae roles y permisos; el producto trae
+  códigos y suplidores).
+- **Nada de `@ManyToMany`.** Toda relación N:M se modela con tres tablas y una entidad
+  intermedia propia: `RolePermission`, `UserOrganizationRole`, `ProductSupplier`. La fila del
+  medio tiene su `id`, sus timestamps y su repositorio, y la unicidad del par la garantiza un
+  `UNIQUE` sobre las dos FK. Las tres extienden `BaseEntity` y no `AuditableEntity`: un
+  vínculo se otorga o se revoca, y no necesita ni autor ni versión.
+- **Estados.** Disponibilidad binaria → `boolean active` (`organizations`, `families`,
+  `categories`, `suppliers`). Ciclo de vida con más de dos estados y comportamiento distinto
+  en cada uno → enum `status` (`users`, `user_organizations`, `products`). No se usan enums de
+  dos valores: no aportan nada sobre el boolean y arrastran un `CHECK` que hay que mantener.
+- **Códigos del producto como entidad.** `ProductCode` (1:N desde `Product`) en vez de
+  columnas `sku`/`upc`/`ean`: un artículo acumula códigos de distinto tipo y con columnas
+  fijas cada tipo nuevo sería una migración. La unicidad es `(organización, tipo, valor)` —
+  por compañía porque el catálogo es de cada tenant, y por tipo porque cada tipo es un
+  espacio de nombres distinto. Las reglas de formato de cada `ProductCodeType` (largo y
+  dígito verificador GTIN) viven en un solo lugar: `ProductCodes`.
 - Las entidades exponen constantes `FIELD_*` con el nombre de sus atributos, que es lo que
   consumen las `Specification` del servicio en vez de literales sueltos.
 - Se publica también el `sources.jar`.

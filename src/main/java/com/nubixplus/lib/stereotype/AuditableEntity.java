@@ -15,8 +15,12 @@ import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 /**
- * Entidad con trazabilidad de autor, control de concurrencia optimista y borrado
- * logico. Las fechas las sigue manejando {@link BaseEntity}.
+ * Entidad con trazabilidad de autor y control de concurrencia optimista. Las fechas
+ * las sigue manejando {@link BaseEntity}.
+ *
+ * <p>No hay borrado logico: borrar es borrar. La disponibilidad de un registro la
+ * lleva cada entidad con lo suyo ({@code active} en el catalogo, {@code status} en
+ * usuarios y membresias), que es lo que de verdad consulta el negocio.</p>
  *
  * <p>Requiere que el servicio active {@code @EnableJpaAuditing} y publique un
  * {@code AuditorAware<String>} (ver {@code JpaConfig} en nubixplus-services).</p>
@@ -31,8 +35,6 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @EntityListeners(AuditingEntityListener.class)
 public abstract class AuditableEntity extends BaseEntity {
 
-    public static final String FIELD_DELETED = "deleted";
-
     @CreatedBy
     @Column(name = "created_by", length = 120, updatable = false)
     private String createdBy;
@@ -44,12 +46,4 @@ public abstract class AuditableEntity extends BaseEntity {
     @Version
     @Column(name = "version", nullable = false)
     private Long version;
-
-    /** Borrado logico: las consultas de negocio filtran siempre por {@code deleted = false}. */
-    @Column(name = "deleted", nullable = false)
-    private boolean deleted;
-
-    public void markDeleted() {
-        this.deleted = Boolean.TRUE;
-    }
 }

@@ -24,4 +24,26 @@ public class PermissionCodes {
     public static final String ORGANIZATIONS_READ = "organizations:read";
     public static final String ORGANIZATIONS_UPDATE = "organizations:update";
     public static final String ORGANIZATIONS_CREATE = "organizations:create";
+
+    /* ----------------------------- Inventario ------------------------------ */
+
+    public static final String PRODUCTS_READ = "products:read";
+    public static final String PRODUCTS_CREATE = "products:create";
+    public static final String PRODUCTS_UPDATE = "products:update";
+    public static final String PRODUCTS_DELETE = "products:delete";
+
+    public static final String CATEGORIES_READ = "categories:read";
+    public static final String CATEGORIES_CREATE = "categories:create";
+    public static final String CATEGORIES_UPDATE = "categories:update";
+    public static final String CATEGORIES_DELETE = "categories:delete";
+
+    public static final String FAMILIES_READ = "families:read";
+    public static final String FAMILIES_CREATE = "families:create";
+    public static final String FAMILIES_UPDATE = "families:update";
+    public static final String FAMILIES_DELETE = "families:delete";
+
+    public static final String SUPPLIERS_READ = "suppliers:read";
+    public static final String SUPPLIERS_CREATE = "suppliers:create";
+    public static final String SUPPLIERS_UPDATE = "suppliers:update";
+    public static final String SUPPLIERS_DELETE = "suppliers:delete";
 }

@@ -7,17 +7,15 @@ import java.util.Optional;
 
 public interface UserRepository extends BaseRepository<User> {
 
-    Optional<User> findByEmailIgnoreCaseAndDeletedFalse(String email);
+    Optional<User> findByEmailIgnoreCase(String email);
 
-    Optional<User> findByIdAndDeletedFalse(Long id);
-
-    boolean existsByEmailIgnoreCaseAndDeletedFalse(String email);
+    boolean existsByEmailIgnoreCase(String email);
 
     default Optional<User> findByEmail(String email) {
-        return findByEmailIgnoreCaseAndDeletedFalse(email);
+        return findByEmailIgnoreCase(email);
     }
 
     default boolean existsByEmail(String email) {
-        return existsByEmailIgnoreCaseAndDeletedFalse(email);
+        return existsByEmailIgnoreCase(email);
     }
 }
